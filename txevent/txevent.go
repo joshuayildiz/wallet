@@ -6,6 +6,7 @@ type E struct {
 	Sender   string
 	Receiver string
 	Amount   int
+	Fee      int
 }
 
 type Currency string

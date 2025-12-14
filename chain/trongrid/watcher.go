@@ -35,7 +35,7 @@ loop:
 	for {
 		select {
 		case <-ctx.Done():
-			break
+			break loop
 
 		case <-time.After(3 * time.Second):
 			now, err := r.trongrid.Now(ctx)
@@ -99,6 +99,11 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 		first := tx.RawData.Contract[0]
 		switch first.Type {
 		case "TransferContract":
+			info, err := r.trongrid.TxInfoByID(ctx, tx.TxID)
+			if err != nil {
+				return err // todo: should just retry a couple seconds later
+			}
+
 			hash := tx.TxID
 			from := decodeTransferAddr(first.Parameter.Value.OwnerAddress)
 			to := decodeTransferAddr(first.Parameter.Value.ToAddress)
@@ -109,6 +114,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 				Sender:   from,
 				Receiver: to,
 				Amount:   amt,
+				Fee:      info.Fee,
 			}
 
 		case "TriggerSmartContract":
@@ -146,6 +152,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 					Sender:   from,
 					Receiver: to,
 					Amount:   int(amt),
+					Fee:      info.Fee,
 				}
 			}
 		}
