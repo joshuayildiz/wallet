@@ -12,18 +12,23 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/joshuayildiz/wallet/chain"
 )
 
 type Client struct {
 	Net    chain.Network
 	apikey string
+	client *http.Client
 }
 
 func New(net chain.Network, apikey string) *Client {
+	retryableClient := retryablehttp.NewClient()
+	retryableClient.RetryMax = 3
 	return &Client{
 		Net:    net,
 		apikey: apikey,
+		client: retryableClient.StandardClient(),
 	}
 }
 
@@ -38,7 +43,7 @@ func (r *Client) Balance(ctx context.Context, addr string) (uint, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("fetching balance: %w", err)
 	}
@@ -70,7 +75,7 @@ func (r *Client) Now(ctx context.Context) (*Block, error) {
 	}
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching now block: %w", err)
 	}
@@ -104,7 +109,7 @@ func (r *Client) BlockByNum(ctx context.Context, num uint) (*Block, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching block %d: %w", num, err)
 	}
@@ -138,7 +143,7 @@ func (r *Client) TxInfoByID(ctx context.Context, id string) (*TxInfo, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching tx by id %s: %w", id, err)
 	}
@@ -177,7 +182,7 @@ func (r *Client) CreateTx(ctx context.Context, from, to string, amt uint) (*Tx, 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("creating tx: %w", err)
 	}
@@ -210,7 +215,7 @@ func (r *Client) Broadcast(ctx context.Context, tx Tx) (string, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("broadcasting tx: %w", err)
 	}
@@ -259,7 +264,7 @@ func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("getting usdt balance of addr %s: %w", addr, err)
 	}
@@ -315,7 +320,7 @@ func (r *Client) SendUSDT(from, to string, amt uint) (*Tx, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sending usdt: %w", err)
 	}
