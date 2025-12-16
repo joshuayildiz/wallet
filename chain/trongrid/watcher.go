@@ -97,6 +97,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 			to := decodeTransferAddr(first.Parameter.Value.ToAddress)
 			amt := first.Parameter.Value.Amount
 			r.EventCh <- txevent.E{
+				Block:    b.BlockHeader.RawData.Number,
 				Currency: txevent.TRX,
 				Hash:     hash,
 				Sender:   from,
@@ -135,6 +136,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 				amt, _ := strconv.ParseInt(l.Data, 16, 64)
 
 				r.EventCh <- txevent.E{
+					Block:    b.BlockHeader.RawData.Number,
 					Currency: txevent.TRON_USDT,
 					Hash:     hash,
 					Sender:   from,
