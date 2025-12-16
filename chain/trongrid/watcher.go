@@ -47,6 +47,7 @@ loop:
 				continue
 			}
 
+			txnum := 0
 			for c.Curr() < latest {
 				b, err := r.trongrid.BlockByNum(ctx, c.Curr())
 				if errors.Is(err, context.DeadlineExceeded) {
@@ -60,6 +61,11 @@ loop:
 					break loop
 				} else if err != nil {
 					panic(fmt.Errorf("watcher: %w", err))
+				}
+
+				txnum++
+				if txnum%5 == 0 {
+					time.Sleep(time.Second)
 				}
 
 				err = c.Adv()
@@ -76,9 +82,16 @@ loop:
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
+	txnum := 0
+
 	for _, tx := range b.Transactions {
 		if len(tx.RawData.Contract) == 0 {
 			continue
+		}
+
+		txnum++
+		if txnum%5 == 0 {
+			time.Sleep(time.Second)
 		}
 
 		// first contract type determines the transaction type
