@@ -44,6 +44,10 @@ func (r *Client) Balance(ctx context.Context, addr string) (uint, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("fetching balance: %s", resp.Status)
+	}
+
 	var data struct {
 		Balance uint `json:"balance"`
 	}
@@ -71,6 +75,10 @@ func (r *Client) Now(ctx context.Context) (*Block, error) {
 		return nil, fmt.Errorf("fetching now block: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching now block: %s", resp.Status)
+	}
 
 	var data Block
 	err = json.NewDecoder(resp.Body).Decode(&data)
@@ -102,6 +110,10 @@ func (r *Client) BlockByNum(ctx context.Context, num uint) (*Block, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching block %d: %s", num, resp.Status)
+	}
+
 	var data Block
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
@@ -131,6 +143,10 @@ func (r *Client) TxInfoByID(ctx context.Context, id string) (*TxInfo, error) {
 		return nil, fmt.Errorf("fetching tx by id %s: %w", id, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching tx by id %s: %s", id, resp.Status)
+	}
 
 	var data TxInfo
 	err = json.NewDecoder(resp.Body).Decode(&data)
@@ -167,6 +183,10 @@ func (r *Client) CreateTx(ctx context.Context, from, to string, amt uint) (*Tx, 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("creating tx: %s", resp.Status)
+	}
+
 	var data Tx
 	err = json.NewDecoder(resp.Body).Decode(&data)
 	if err != nil {
@@ -195,6 +215,10 @@ func (r *Client) Broadcast(ctx context.Context, tx Tx) (string, error) {
 		return "", fmt.Errorf("broadcasting tx: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("broadcasting tx: %s", resp.Status)
+	}
 
 	var data struct {
 		Result  bool   `json:"result"`
@@ -240,6 +264,10 @@ func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 		return 0, fmt.Errorf("getting usdt balance of addr %s: %w", addr, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("getting usdt balance of addr %s: %s", addr, resp.Status)
+	}
 
 	var data TriggerConstContract
 	err = json.NewDecoder(resp.Body).Decode(&data)
@@ -292,6 +320,10 @@ func (r *Client) SendUSDT(from, to string, amt uint) (*Tx, error) {
 		return nil, fmt.Errorf("sending usdt: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("sending usdt: %s", resp.Status)
+	}
 
 	var data TriggerSmartContract
 	err = json.NewDecoder(resp.Body).Decode(&data)
