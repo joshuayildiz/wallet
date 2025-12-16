@@ -47,41 +47,32 @@ loop:
 				continue
 			}
 
-			diff := latest - c.Curr()
-			if diff > 10 {
-				diff = 5
-			}
+			for c.Curr() < latest {
+				b, err := r.trongrid.BlockByNum(ctx, c.Curr())
+				if errors.Is(err, context.DeadlineExceeded) {
+					break loop
+				} else if err != nil {
+					break
+				}
 
-			err = r.do(ctx, c.Curr(), c.Curr()+diff)
-			if errors.Is(err, context.DeadlineExceeded) {
-				break loop
-			} else if err != nil {
-				panic(fmt.Errorf("watcher: %w", err))
-			}
+				err = r.doBlock(ctx, b)
+				if errors.Is(err, context.DeadlineExceeded) {
+					break loop
+				} else if err != nil {
+					panic(fmt.Errorf("watcher: %w", err))
+				}
 
-			err = c.Adv(diff)
-			if err != nil {
-				panic(fmt.Errorf("advancing cursor: %w", err))
+				err = c.Adv()
+				if errors.Is(err, context.DeadlineExceeded) {
+					break loop
+				} else if err != nil {
+					panic(fmt.Errorf("advancing cursor: %w", err))
+				}
 			}
 		}
 	}
 
 	close(r.EventCh)
-}
-
-func (r *Watcher) do(ctx context.Context, from, to uint) error {
-	for i := from; i <= to; i++ {
-		b, err := r.trongrid.BlockByNum(ctx, i)
-		if err != nil {
-			return fmt.Errorf("fetching block %d: %w", i, err)
-		}
-
-		err = r.doBlock(ctx, b)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block) error {

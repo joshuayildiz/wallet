@@ -32,7 +32,7 @@ func (r *memCursor) Curr() uint {
 	return r.curr
 }
 
-func (r *memCursor) Adv(by uint) error {
-	r.curr += by
+func (r *memCursor) Adv() error {
+	r.curr++
 	return nil
 }
