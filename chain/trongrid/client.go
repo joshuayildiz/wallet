@@ -129,6 +129,40 @@ func (r *Client) BlockByNum(ctx context.Context, num uint) (*Block, error) {
 	return &data, nil
 }
 
+func (r *Client) TxInfoByBlockNum(ctx context.Context, num uint) ([]TxInfo, error) {
+	body := map[string]any{"num": num}
+	bodyBytes, _ := json.Marshal(body)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost, r.url("/walletsolidity/gettransactioninfobyblocknum"),
+		bytes.NewBuffer(bodyBytes),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching tx info by block num %d: %w", num, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetching tx info by block num %d: %s", num, resp.Status)
+	}
+
+	var data []TxInfo
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return nil, fmt.Errorf("decoding tx info by block num %d: %w", num, err)
+	}
+
+	return data, nil
+}
+
 func (r *Client) TxInfoByID(ctx context.Context, id string) (*TxInfo, error) {
 	body := map[string]any{"value": id}
 	bodyBytes, _ := json.Marshal(body)

@@ -76,15 +76,19 @@ loop:
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sender, receiver string) bool) error {
-	txnum := 0
+	txInfoList, err := r.trongrid.TxInfoByBlockNum(ctx, b.BlockHeader.RawData.Number)
+	if err != nil {
+		return err
+	}
+
+	txInfoMap := make(map[string]TxInfo, 0)
+	for _, i := range txInfoList {
+		txInfoMap[i.ID] = i
+	}
 
 	for _, tx := range b.Transactions {
 		if len(tx.RawData.Contract) == 0 {
 			continue
-		}
-
-		if txnum%15 == 0 {
-			time.Sleep(time.Second)
 		}
 
 		// first contract type determines the transaction type
@@ -102,11 +106,10 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 				continue
 			}
 
-			info, err := r.trongrid.TxInfoByID(ctx, tx.TxID)
-			if err != nil {
-				return err // todo: should just retry a couple seconds later
+			info, ok := txInfoMap[tx.TxID]
+			if !ok {
+				return fmt.Errorf("tx info not found: %s", tx.TxID)
 			}
-			txnum++
 
 			r.EventCh <- txevent.E{
 				Block:    b.BlockHeader.RawData.Number,
@@ -119,11 +122,10 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 			}
 
 		case "TriggerSmartContract":
-			info, err := r.trongrid.TxInfoByID(ctx, tx.TxID)
-			if err != nil {
-				return err // todo: should just retry a couple seconds later
+			info, ok := txInfoMap[tx.TxID]
+			if !ok {
+				return fmt.Errorf("tx info not found: %s", tx.TxID)
 			}
-			txnum++
 
 			if info.Receipt.Result != "SUCCESS" {
 				continue
