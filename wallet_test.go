@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/joshuayildiz/wallet/chain"
+	"github.com/joshuayildiz/wallet/chain/trongrid"
 	"github.com/joshuayildiz/wallet/tronusdt"
 	"github.com/joshuayildiz/wallet/trx"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,9 @@ func TestTRXWalletIsWallet(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	trxW, err := trx.New(chain.Mainnet)
+	trongrid := trongrid.New(chain.Mainnet, "")
+
+	trxW, err := trx.New(trongrid)
 	assert.NoError(t, err)
 	assert.NotNil(t, trxW)
 
@@ -34,7 +37,9 @@ func TestTRONUSDTWalletIsWallet(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	tronusdtW, err := tronusdt.New(chain.Mainnet)
+	trongrid := trongrid.New(chain.Mainnet, "")
+
+	tronusdtW, err := tronusdt.New(trongrid)
 	assert.NoError(t, err)
 	assert.NotNil(t, tronusdtW)
 

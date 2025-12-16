@@ -16,8 +16,9 @@ func TestWatcher(t *testing.T) {
 	defer cancel()
 
 	cursor := &memCursor{curr: 60128600}
+	trongrid := New(chain.Testnet, "")
 
-	watcher := Watch(ctx, chain.Testnet, cursor)
+	watcher := Watch(ctx, trongrid, cursor)
 	assert.NotNil(t, watcher)
 
 	<-watcher.EventCh

@@ -18,26 +18,24 @@ import (
 )
 
 type Wallet struct {
-	net      chain.Network
 	privKey  *secp256k1.PrivateKey
 	trongrid *trongrid.Client
 }
 
-func New(net chain.Network) (*Wallet, error) {
+func New(trongrid *trongrid.Client) (*Wallet, error) {
 	privKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("tronusdt.New: %w", err)
 	}
 
 	self := Wallet{
-		net:      net,
 		privKey:  privKey,
-		trongrid: trongrid.New(net),
+		trongrid: trongrid,
 	}
 	return &self, nil
 }
 
-func NewWithPrivKeyHex(net chain.Network, privKeyHex string) (*Wallet, error) {
+func NewWithPrivKeyHex(trongrid *trongrid.Client, privKeyHex string) (*Wallet, error) {
 	privKeyBytes, err := hex.DecodeString(privKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("privkeyhex is invalid hex")
@@ -45,9 +43,8 @@ func NewWithPrivKeyHex(net chain.Network, privKeyHex string) (*Wallet, error) {
 
 	privKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
 	self := Wallet{
-		net:      net,
 		privKey:  privKey,
-		trongrid: trongrid.New(net),
+		trongrid: trongrid,
 	}
 
 	return &self, nil
@@ -67,7 +64,7 @@ func (r *Wallet) Addr() string {
 	last20 := keccak256[len(keccak256)-20:]
 
 	var networkedBuf bytes.Buffer
-	switch r.net {
+	switch r.trongrid.Net {
 	case chain.Mainnet:
 		networkedBuf.WriteByte(0x41)
 	case chain.Testnet:

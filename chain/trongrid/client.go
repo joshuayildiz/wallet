@@ -16,12 +16,14 @@ import (
 )
 
 type Client struct {
-	net chain.Network
+	Net    chain.Network
+	apikey string
 }
 
-func New(net chain.Network) *Client {
+func New(net chain.Network, apikey string) *Client {
 	return &Client{
-		net: net,
+		Net:    net,
+		apikey: apikey,
 	}
 }
 
@@ -34,6 +36,7 @@ func (r *Client) Balance(ctx context.Context, addr string) (uint, error) {
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, r.url("/wallet/getaccount"), bytes.NewBuffer(bodyBytes))
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -61,6 +64,7 @@ func (r *Client) Now(ctx context.Context) (*Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -89,6 +93,8 @@ func (r *Client) BlockByNum(ctx context.Context, num uint) (*Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -117,6 +123,8 @@ func (r *Client) TxInfoByID(ctx context.Context, id string) (*TxInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -150,6 +158,8 @@ func (r *Client) CreateTx(ctx context.Context, from, to string, amt uint) (*Tx, 
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -177,6 +187,8 @@ func (r *Client) Broadcast(ctx context.Context, tx Tx) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -204,7 +216,7 @@ func (r *Client) Broadcast(ctx context.Context, tx Tx) (string, error) {
 func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 	body := map[string]any{
 		"owner_address":     addr,
-		"contract_address":  usdtContractAddr(r.net),
+		"contract_address":  usdtContractAddr(r.Net),
 		"function_selector": "balanceOf(address)",
 		"parameter":         abiEncodeAddr(addr),
 		"call_value":        0,
@@ -220,6 +232,8 @@ func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 	if err != nil {
 		return 0, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -254,7 +268,7 @@ func (r *Client) SendUSDT(from, to string, amt uint) (*Tx, error) {
 
 	body := map[string]any{
 		"owner_address":     from,
-		"contract_address":  usdtContractAddr(r.net),
+		"contract_address":  usdtContractAddr(r.Net),
 		"function_selector": "transfer(address,uint256)",
 		"parameter":         abiEncodeSend(to, amt),
 		"visible":           true,
@@ -270,6 +284,8 @@ func (r *Client) SendUSDT(from, to string, amt uint) (*Tx, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -318,7 +334,7 @@ func abiEncodeUint(v uint) string {
 }
 
 func (r *Client) url(path string) string {
-	switch r.net {
+	switch r.Net {
 	case chain.Mainnet:
 		return "https://api.trongrid.io" + path
 	case chain.Testnet:

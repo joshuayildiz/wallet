@@ -7,21 +7,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/joshuayildiz/wallet/chain"
 	"github.com/joshuayildiz/wallet/cursor"
 	"github.com/joshuayildiz/wallet/txevent"
 )
 
 type Watcher struct {
-	net      chain.Network
 	trongrid *Client
 	EventCh  chan txevent.E
 }
 
-func Watch(ctx context.Context, net chain.Network, c cursor.Cursor) *Watcher {
+func Watch(ctx context.Context, trongrid *Client, c cursor.Cursor) *Watcher {
 	self := &Watcher{
-		net:      net,
-		trongrid: New(net),
+		trongrid: trongrid,
 		EventCh:  make(chan txevent.E),
 	}
 
@@ -128,7 +125,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 			}
 
 			for _, l := range info.Log {
-				if l.Address != encodedUSDTContractAddr(r.net) {
+				if l.Address != encodedUSDTContractAddr(r.trongrid.Net) {
 					continue
 				}
 
@@ -142,8 +139,8 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 				}
 
 				hash := tx.TxID
-				from := decodeTopicAddr(r.net, l.Topics[1])
-				to := decodeTopicAddr(r.net, l.Topics[2])
+				from := decodeTopicAddr(r.trongrid.Net, l.Topics[1])
+				to := decodeTopicAddr(r.trongrid.Net, l.Topics[2])
 				amt, _ := strconv.ParseInt(l.Data, 16, 64)
 
 				r.EventCh <- txevent.E{
