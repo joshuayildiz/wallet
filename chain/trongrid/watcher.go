@@ -16,18 +16,18 @@ type Watcher struct {
 	EventCh  chan txevent.E
 }
 
-func Watch(ctx context.Context, trongrid *Client, c cursor.Cursor) *Watcher {
+func Watch(ctx context.Context, trongrid *Client, c cursor.Cursor, filter func(hash, sender, receiver string) bool) *Watcher {
 	self := &Watcher{
 		trongrid: trongrid,
 		EventCh:  make(chan txevent.E),
 	}
 
-	go self.watch(ctx, c)
+	go self.watch(ctx, c, filter)
 
 	return self
 }
 
-func (r *Watcher) watch(ctx context.Context, c cursor.Cursor) {
+func (r *Watcher) watch(ctx context.Context, c cursor.Cursor, filter func(hash, sender, receiver string) bool) {
 loop:
 	for {
 		select {
@@ -56,7 +56,7 @@ loop:
 					break
 				}
 
-				err = r.doBlock(ctx, b)
+				err = r.doBlock(ctx, b, filter)
 				if errors.Is(err, context.DeadlineExceeded) {
 					break loop
 				} else if err != nil {
@@ -81,7 +81,7 @@ loop:
 	close(r.EventCh)
 }
 
-func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
+func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sender, receiver string) bool) error {
 	txnum := 0
 
 	for _, tx := range b.Transactions {
@@ -89,7 +89,6 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 			continue
 		}
 
-		txnum++
 		if txnum%5 == 0 {
 			time.Sleep(time.Second)
 		}
@@ -100,15 +99,21 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 		first := tx.RawData.Contract[0]
 		switch first.Type {
 		case "TransferContract":
-			info, err := r.trongrid.TxInfoByID(ctx, tx.TxID)
-			if err != nil {
-				return err // todo: should just retry a couple seconds later
-			}
-
 			hash := tx.TxID
 			from := decodeTransferAddr(first.Parameter.Value.OwnerAddress)
 			to := decodeTransferAddr(first.Parameter.Value.ToAddress)
 			amt := first.Parameter.Value.Amount
+
+			if !filter(hash, from, to) {
+				continue
+			}
+
+			info, err := r.trongrid.TxInfoByID(ctx, tx.TxID)
+			if err != nil {
+				return err // todo: should just retry a couple seconds later
+			}
+			txnum++
+
 			r.EventCh <- txevent.E{
 				Block:    b.BlockHeader.RawData.Number,
 				Currency: txevent.TRX,
@@ -124,6 +129,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 			if err != nil {
 				return err // todo: should just retry a couple seconds later
 			}
+			txnum++
 
 			if info.Receipt.Result != "SUCCESS" {
 				continue
@@ -147,6 +153,10 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block) error {
 				from := decodeTopicAddr(r.trongrid.Net, l.Topics[1])
 				to := decodeTopicAddr(r.trongrid.Net, l.Topics[2])
 				amt, _ := strconv.ParseInt(l.Data, 16, 64)
+
+				if !filter(hash, from, to) {
+					continue
+				}
 
 				r.EventCh <- txevent.E{
 					Block:    b.BlockHeader.RawData.Number,

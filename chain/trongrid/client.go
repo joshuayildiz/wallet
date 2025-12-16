@@ -25,6 +25,7 @@ type Client struct {
 func New(net chain.Network, apikey string) *Client {
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.RetryMax = 3
+	retryableClient.Logger = nil
 	return &Client{
 		Net:    net,
 		apikey: apikey,
