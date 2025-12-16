@@ -76,9 +76,15 @@ loop:
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sender, receiver string) bool) error {
+	txnum := 0
+
 	for _, tx := range b.Transactions {
 		if len(tx.RawData.Contract) == 0 {
 			continue
+		}
+
+		if txnum%15 == 0 {
+			time.Sleep(time.Second)
 		}
 
 		// first contract type determines the transaction type
@@ -100,6 +106,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 			if err != nil {
 				return err // todo: should just retry a couple seconds later
 			}
+			txnum++
 
 			r.EventCh <- txevent.E{
 				Block:    b.BlockHeader.RawData.Number,
@@ -116,6 +123,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 			if err != nil {
 				return err // todo: should just retry a couple seconds later
 			}
+			txnum++
 
 			if info.Receipt.Result != "SUCCESS" {
 				continue
