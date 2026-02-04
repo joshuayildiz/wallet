@@ -1,6 +1,8 @@
 package trongrid
 
 import (
+	"fmt"
+
 	"github.com/joshuayildiz/wallet/chain"
 )
 
@@ -16,8 +18,9 @@ func usdtContractAddr(net chain.Network) string {
 		return "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 	case chain.Testnet:
 		return "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"
+	default:
+		panic(fmt.Sprintf("trongrid: unsupported network %q", net))
 	}
-	return "unreachable"
 }
 
 func encodedUSDTContractAddr(net chain.Network) string {
@@ -26,6 +29,7 @@ func encodedUSDTContractAddr(net chain.Network) string {
 		return "a614f803b6fd780986a42c78ec9c7f77e6ded13c"
 	case chain.Testnet:
 		return "42a1e39aefa49290f2b3f9ed688d7cecf86cd6e0"
+	default:
+		panic(fmt.Sprintf("trongrid: unsupported network %q", net))
 	}
-	return "unreachable"
 }

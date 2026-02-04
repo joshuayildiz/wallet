@@ -33,52 +33,70 @@ func (r *Watcher) watch(ctx context.Context, c cursor.Cursor, filter func(hash, 
 	defer close(r.EventCh)
 	defer close(r.ErrCh)
 
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	// Poll immediately on first iteration, then use ticker
+	immediate := make(chan struct{}, 1)
+	immediate <- struct{}{}
+
 loop:
 	for {
 		select {
 		case <-ctx.Done():
 			break loop
 
-		case <-time.After(3 * time.Second):
-			now, err := r.trongrid.Now(ctx)
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-				break loop
-			} else if err != nil {
-				r.ErrCh <- fmt.Errorf("watcher: fetching now block: %w", err)
+		case <-immediate:
+			if err := r.poll(ctx, c, filter); err != nil {
+				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+					break loop
+				}
+				r.ErrCh <- err
 				break loop
 			}
 
-			latest := now.BlockHeader.RawData.Number
-			if c.Curr() == latest || latest == 0 {
-				continue
-			}
-
-			for c.Curr() < latest {
-				b, err := r.trongrid.BlockByNum(ctx, c.Curr())
+		case <-ticker.C:
+			if err := r.poll(ctx, c, filter); err != nil {
 				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 					break loop
-				} else if err != nil {
-					break
 				}
-
-				err = r.doBlock(ctx, b, filter)
-				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-					break loop
-				} else if err != nil {
-					r.ErrCh <- fmt.Errorf("watcher: %w", err)
-					break loop
-				}
-
-				err = c.Adv()
-				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-					break loop
-				} else if err != nil {
-					r.ErrCh <- fmt.Errorf("advancing cursor: %w", err)
-					break loop
-				}
+				r.ErrCh <- err
+				break loop
 			}
 		}
 	}
+}
+
+func (r *Watcher) poll(ctx context.Context, c cursor.Cursor, filter func(hash, sender, receiver string) bool) error {
+	now, err := r.trongrid.Now(ctx)
+	if err != nil {
+		return fmt.Errorf("watcher: fetching now block: %w", err)
+	}
+
+	latest := now.BlockHeader.RawData.Number
+	if c.Curr() == latest || latest == 0 {
+		return nil
+	}
+
+	for c.Curr() < latest {
+		b, err := r.trongrid.BlockByNum(ctx, c.Curr())
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return err
+		} else if err != nil {
+			// Non-context error fetching block, skip this poll cycle
+			return nil
+		}
+
+		if err := r.doBlock(ctx, b, filter); err != nil {
+			return fmt.Errorf("watcher: %w", err)
+		}
+
+		if err := c.Adv(); err != nil {
+			return fmt.Errorf("advancing cursor: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sender, receiver string) bool) error {
@@ -166,7 +184,10 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 				if err != nil {
 					return fmt.Errorf("decoding topic receiver address: %w", err)
 				}
-				amt, _ := strconv.ParseInt(l.Data, 16, 64)
+				amt, err := strconv.ParseInt(l.Data, 16, 64)
+				if err != nil {
+					return fmt.Errorf("parsing transfer amount %q: %w", l.Data, err)
+				}
 
 				if !filter(hash, from, to) {
 					continue

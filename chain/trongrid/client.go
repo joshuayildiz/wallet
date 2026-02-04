@@ -407,6 +407,7 @@ func (r *Client) url(path string) string {
 		return "https://api.trongrid.io" + path
 	case chain.Testnet:
 		return "https://api.shasta.trongrid.io" + path
+	default:
+		panic(fmt.Sprintf("trongrid: unsupported network %q", r.Net))
 	}
-	return "unreachable" // compiler is too dumb
 }
