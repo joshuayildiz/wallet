@@ -10,6 +10,37 @@ import (
 	"github.com/joshuayildiz/wallet/chain"
 )
 
+// ValidateAddr validates a TRON address format and checksum.
+// Returns nil if valid, otherwise returns an error describing the issue.
+func ValidateAddr(addr string) error {
+	if len(addr) != 34 {
+		return fmt.Errorf("invalid address length: got %d, want 34", len(addr))
+	}
+
+	if addr[0] != 'T' {
+		return fmt.Errorf("invalid address prefix: got %q, want 'T'", addr[0])
+	}
+
+	decoded := base58.Decode(addr)
+	if len(decoded) != 25 {
+		return fmt.Errorf("invalid decoded address length: got %d, want 25", len(decoded))
+	}
+
+	// Verify checksum (last 4 bytes)
+	payload := decoded[:21]
+	checksum := decoded[21:]
+
+	first := sha256.Sum256(payload)
+	second := sha256.Sum256(first[:])
+	expectedChecksum := second[:4]
+
+	if !bytes.Equal(checksum, expectedChecksum) {
+		return fmt.Errorf("invalid address checksum")
+	}
+
+	return nil
+}
+
 func decodeTransferAddr(value string) (string, error) {
 	addrBytes, err := hex.DecodeString(value)
 	if err != nil {

@@ -17,6 +17,8 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+var ErrInvalidAddress = errors.New("invalid address")
+
 type Wallet struct {
 	privKey  *secp256k1.PrivateKey
 	trongrid *trongrid.Client
@@ -93,6 +95,10 @@ func (r *Wallet) Balance(ctx context.Context) (uint, error) {
 }
 
 func (r *Wallet) Send(ctx context.Context, to string, amt uint) (string, error) {
+	if err := trongrid.ValidateAddr(to); err != nil {
+		return "", fmt.Errorf("%w: %v", ErrInvalidAddress, err)
+	}
+
 	tx, err := r.trongrid.SendUSDT(ctx, r.Addr(), to, amt)
 	if err != nil {
 		return "", err

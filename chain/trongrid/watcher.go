@@ -36,33 +36,19 @@ func (r *Watcher) watch(ctx context.Context, c cursor.Cursor, filter func(hash, 
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
-	// Poll immediately on first iteration, then use ticker
-	immediate := make(chan struct{}, 1)
-	immediate <- struct{}{}
-
-loop:
+	// Poll immediately, then on ticker
 	for {
+		if err := r.poll(ctx, c, filter); err != nil {
+			if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+				r.ErrCh <- err
+			}
+			return
+		}
+
 		select {
 		case <-ctx.Done():
-			break loop
-
-		case <-immediate:
-			if err := r.poll(ctx, c, filter); err != nil {
-				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-					break loop
-				}
-				r.ErrCh <- err
-				break loop
-			}
-
+			return
 		case <-ticker.C:
-			if err := r.poll(ctx, c, filter); err != nil {
-				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-					break loop
-				}
-				r.ErrCh <- err
-				break loop
-			}
 		}
 	}
 }
