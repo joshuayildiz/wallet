@@ -93,7 +93,7 @@ func (r *Wallet) Balance(ctx context.Context) (uint, error) {
 }
 
 func (r *Wallet) Send(ctx context.Context, to string, amt uint) (string, error) {
-	tx, err := r.trongrid.SendUSDT(r.Addr(), to, amt)
+	tx, err := r.trongrid.SendUSDT(ctx, r.Addr(), to, amt)
 	if err != nil {
 		return "", err
 	}

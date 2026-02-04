@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hashicorp/go-retryablehttp"
@@ -330,10 +329,7 @@ func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 	return uint(balance), nil
 }
 
-func (r *Client) SendUSDT(from, to string, amt uint) (*Tx, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (r *Client) SendUSDT(ctx context.Context, from, to string, amt uint) (*Tx, error) {
 	body := map[string]any{
 		"owner_address":     from,
 		"contract_address":  usdtContractAddr(r.Net),

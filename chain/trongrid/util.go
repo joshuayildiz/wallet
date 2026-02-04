@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/joshuayildiz/wallet/chain"
 )
 
-func decodeTransferAddr(value string) string {
+func decodeTransferAddr(value string) (string, error) {
 	addrBytes, err := hex.DecodeString(value)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("decoding transfer address: %w", err)
 	}
 
 	first := sha256.Sum256(addrBytes)
@@ -22,14 +23,14 @@ func decodeTransferAddr(value string) string {
 	both := append(addrBytes, checksum...)
 	encoded := base58.Encode(both)
 
-	return encoded
+	return encoded, nil
 }
 
-func decodeTopicAddr(net chain.Network, value string) string {
+func decodeTopicAddr(net chain.Network, value string) (string, error) {
 	last40 := value[24:]
 	addrBytes, err := hex.DecodeString(last40)
 	if err != nil {
-		panic(err) // todo: should we panic here? figure that out
+		return "", fmt.Errorf("decoding topic address: %w", err)
 	}
 
 	var networkedBuf bytes.Buffer
@@ -50,5 +51,5 @@ func decodeTopicAddr(net chain.Network, value string) string {
 	both := append(networked, checksum...)
 	encoded := base58.Encode(both)
 
-	return encoded
+	return encoded, nil
 }

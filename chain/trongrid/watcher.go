@@ -14,12 +14,14 @@ import (
 type Watcher struct {
 	trongrid *Client
 	EventCh  chan txevent.E
+	ErrCh    chan error
 }
 
 func Watch(ctx context.Context, trongrid *Client, c cursor.Cursor, filter func(hash, sender, receiver string) bool) *Watcher {
 	self := &Watcher{
 		trongrid: trongrid,
 		EventCh:  make(chan txevent.E),
+		ErrCh:    make(chan error, 1),
 	}
 
 	go self.watch(ctx, c, filter)
@@ -28,6 +30,9 @@ func Watch(ctx context.Context, trongrid *Client, c cursor.Cursor, filter func(h
 }
 
 func (r *Watcher) watch(ctx context.Context, c cursor.Cursor, filter func(hash, sender, receiver string) bool) {
+	defer close(r.EventCh)
+	defer close(r.ErrCh)
+
 loop:
 	for {
 		select {
@@ -36,10 +41,11 @@ loop:
 
 		case <-time.After(3 * time.Second):
 			now, err := r.trongrid.Now(ctx)
-			if errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				break loop
 			} else if err != nil {
-				panic(fmt.Errorf("watcher: fetching now block: %w", err))
+				r.ErrCh <- fmt.Errorf("watcher: fetching now block: %w", err)
+				break loop
 			}
 
 			latest := now.BlockHeader.RawData.Number
@@ -49,30 +55,30 @@ loop:
 
 			for c.Curr() < latest {
 				b, err := r.trongrid.BlockByNum(ctx, c.Curr())
-				if errors.Is(err, context.DeadlineExceeded) {
+				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 					break loop
 				} else if err != nil {
 					break
 				}
 
 				err = r.doBlock(ctx, b, filter)
-				if errors.Is(err, context.DeadlineExceeded) {
+				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 					break loop
 				} else if err != nil {
-					panic(fmt.Errorf("watcher: %w", err))
+					r.ErrCh <- fmt.Errorf("watcher: %w", err)
+					break loop
 				}
 
 				err = c.Adv()
-				if errors.Is(err, context.DeadlineExceeded) {
+				if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 					break loop
 				} else if err != nil {
-					panic(fmt.Errorf("advancing cursor: %w", err))
+					r.ErrCh <- fmt.Errorf("advancing cursor: %w", err)
+					break loop
 				}
 			}
 		}
 	}
-
-	close(r.EventCh)
 }
 
 func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sender, receiver string) bool) error {
@@ -81,7 +87,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 		return err
 	}
 
-	txInfoMap := make(map[string]TxInfo, 0)
+	txInfoMap := make(map[string]TxInfo, len(txInfoList))
 	for _, i := range txInfoList {
 		txInfoMap[i.ID] = i
 	}
@@ -98,8 +104,14 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 		switch first.Type {
 		case "TransferContract":
 			hash := tx.TxID
-			from := decodeTransferAddr(first.Parameter.Value.OwnerAddress)
-			to := decodeTransferAddr(first.Parameter.Value.ToAddress)
+			from, err := decodeTransferAddr(first.Parameter.Value.OwnerAddress)
+			if err != nil {
+				return fmt.Errorf("decoding owner address: %w", err)
+			}
+			to, err := decodeTransferAddr(first.Parameter.Value.ToAddress)
+			if err != nil {
+				return fmt.Errorf("decoding to address: %w", err)
+			}
 			amt := first.Parameter.Value.Amount
 
 			if !filter(hash, from, to) {
@@ -146,8 +158,14 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 				}
 
 				hash := tx.TxID
-				from := decodeTopicAddr(r.trongrid.Net, l.Topics[1])
-				to := decodeTopicAddr(r.trongrid.Net, l.Topics[2])
+				from, err := decodeTopicAddr(r.trongrid.Net, l.Topics[1])
+				if err != nil {
+					return fmt.Errorf("decoding topic sender address: %w", err)
+				}
+				to, err := decodeTopicAddr(r.trongrid.Net, l.Topics[2])
+				if err != nil {
+					return fmt.Errorf("decoding topic receiver address: %w", err)
+				}
 				amt, _ := strconv.ParseInt(l.Data, 16, 64)
 
 				if !filter(hash, from, to) {
