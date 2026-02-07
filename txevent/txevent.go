@@ -1,6 +1,7 @@
 package txevent
 
 type E struct {
+	Result   string
 	Block    uint
 	Hash     string
 	Currency Currency

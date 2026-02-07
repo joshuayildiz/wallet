@@ -128,6 +128,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 			}
 
 			r.EventCh <- txevent.E{
+				Result:   info.Receipt.Result,
 				Block:    b.BlockHeader.RawData.Number,
 				Currency: txevent.TRX,
 				Hash:     hash,
@@ -141,10 +142,6 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 			info, ok := txInfoMap[tx.TxID]
 			if !ok {
 				return fmt.Errorf("tx info not found: %s", tx.TxID)
-			}
-
-			if info.Receipt.Result != "SUCCESS" {
-				continue
 			}
 
 			for _, l := range info.Log {
@@ -180,6 +177,7 @@ func (r *Watcher) doBlock(ctx context.Context, b *Block, filter func(hash, sende
 				}
 
 				r.EventCh <- txevent.E{
+					Result:   info.Receipt.Result,
 					Block:    b.BlockHeader.RawData.Number,
 					Currency: txevent.TRON_USDT,
 					Hash:     hash,
