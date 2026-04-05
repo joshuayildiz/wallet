@@ -80,6 +80,8 @@ func (r *Watcher) poll(ctx context.Context, c cursor.Cursor, filter func(hash, s
 		if err := c.Adv(); err != nil {
 			return fmt.Errorf("advancing cursor: %w", err)
 		}
+
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return nil
