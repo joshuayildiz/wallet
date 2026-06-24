@@ -336,7 +336,7 @@ func (r *Client) SendUSDT(ctx context.Context, from, to string, amt uint) (*Tx, 
 		"function_selector": "transfer(address,uint256)",
 		"parameter":         abiEncodeSend(to, amt),
 		"visible":           true,
-		"fee_limit":         10_000_000, // 10 usdt
+		"fee_limit":         50_000_000, // 100 usdt
 	}
 	bodyBytes, _ := json.Marshal(body)
 
