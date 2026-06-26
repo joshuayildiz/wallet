@@ -49,3 +49,16 @@ func TestTRONUSDTWalletIsWallet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint(0), balance)
 }
+
+func TestEstimateEnergy(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	trongrid := trongrid.New(chain.Mainnet, "")
+
+	energyRequired, err := trongrid.EstimateEnergy(ctx, "sender", "receiver", 100_000_000)
+	assert.NoError(t, err)
+	assert.Greater(t, energyRequired, uint(0))
+}

@@ -329,6 +329,61 @@ func (r *Client) USDTBalance(ctx context.Context, addr string) (uint, error) {
 	return uint(balance), nil
 }
 
+func (r *Client) EstimateEnergy(ctx context.Context, from, to string, amt uint) (uint, error) {
+	body := map[string]any{
+		"owner_address":     from,
+		"contract_address":  usdtContractAddr(r.Net),
+		"function_selector": "transfer(address,uint256)",
+		"parameter":         abiEncodeSend(to, amt),
+		"visible":           true,
+		"fee_limit":         100_000_000, // 100 usdt
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost, r.url("/wallet/triggerconstantcontract"),
+		bytes.NewBuffer(bodyBytes),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("TRON-PRO-API-KEY", r.apikey)
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("received !200: %s", resp.Status)
+	}
+
+	var data struct {
+		Result struct {
+			Result  bool   `json:"result"`
+			Message string `json:"message"`
+		} `json:"result"`
+		EnergyUsed    uint `json:"energy_used"`
+		EnergyPenalty uint `json:"energy_penalty"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return 0, fmt.Errorf("decoding usdt tx: %w", err)
+	}
+	if !data.Result.Result {
+		return 0, fmt.Errorf("sending usdt result: %v", data.Result.Result)
+	}
+
+	// add a 10% tolerance to ensure it succeeds
+	total := data.EnergyUsed + data.EnergyPenalty
+	total += uint(float64(total) * 0.1)
+
+	return total, nil
+}
+
 func (r *Client) SendUSDT(ctx context.Context, from, to string, amt uint) (*Tx, error) {
 	body := map[string]any{
 		"owner_address":     from,
